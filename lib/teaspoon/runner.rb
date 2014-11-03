@@ -35,12 +35,19 @@ module Teaspoon
     end
 
     def result_from_line(line)
-      json = JSON.parse(line)
-      return false unless json && json["_teaspoon"] && json["type"]
-      json["original_json"] = line
-      return result_from_json(json)
-    rescue JSON::ParserError
-      false
+      json_parse_errors = [JSON::ParserError]
+      if defined?(Oj::ParseError)
+        json_parse_errors << Oj::ParseError
+      end
+
+      begin
+        json = JSON.parse(line)
+        return false unless json && json["_teaspoon"] && json["type"]
+        json["original_json"] = line
+        return result_from_json(json)
+      rescue *json_parse_errors
+        false
+      end
     end
 
     def result_from_json(json)

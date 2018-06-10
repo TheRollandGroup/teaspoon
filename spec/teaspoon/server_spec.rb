@@ -3,15 +3,14 @@ require "teaspoon/server"
 require "net/http"
 
 describe Teaspoon::Server do
-
-  subject { Teaspoon::Server.new }
-
   describe "#start" do
-
     let(:server) { double(start: nil) }
 
     before do
-      allow(Thread).to receive(:new) { |&b| @block = b; "_thread_" }
+      allow(Thread).to receive(:new) do |&b|
+        @block = b
+        "_thread_"
+      end
       allow(subject).to receive(:wait_until_started).and_return(nil)
     end
 
@@ -36,12 +35,16 @@ describe Teaspoon::Server do
 
     it "rescues errors" do
       expect(Thread).to receive(:new).and_raise("OMG!")
-      expect { subject.start }.to raise_error("Cannot start server: OMG!")
+      expect { subject.start }.to raise_error(
+        Teaspoon::ServerError,
+        "Unable to start teaspoon server; OMG!."
+      )
     end
 
     it "creates a Rack::Server with the correct setting" do
       expected_opts = {
         app: Rails.application,
+        Host: subject.host,
         Port: subject.port,
         environment: "test",
         AccessLog: [],
@@ -54,16 +57,18 @@ describe Teaspoon::Server do
       @block.call
     end
 
-    it "raises a ServerException if the timeout fails" do
+    it "raises an exception if the timeout fails" do
       expect(subject).to receive(:wait_until_started).and_call_original
-      expect(Timeout).to receive(:timeout).with(Teaspoon.configuration.server_timeout.to_i).and_raise(Timeout::Error)
-      expect{ subject.start }.to raise_error Teaspoon::ServerException
+      expect(Timeout).to receive(:timeout).with(Teaspoon.configuration.server_timeout.to_i).
+        and_raise(Timeout::Error)
+      expect { subject.start }.to raise_error(
+        Teaspoon::ServerError,
+        "Unable to start teaspoon server; consider increasing the timeout with `config.server_timeout`."
+      )
     end
-
   end
 
   describe "#responsive?" do
-
     let(:socket) { double(close: nil) }
 
     it "checks a local port to see if a server is running" do
@@ -73,21 +78,32 @@ describe Teaspoon::Server do
       subject.responsive?
     end
 
+    it "checks a port in a given host to see if a server is running" do
+      subject.host = "0.0.0.0"
+      subject.port = 31337
+      expect(TCPSocket).to receive(:new).with("0.0.0.0", 31337).and_return(socket)
+      expect(socket).to receive(:close)
+      subject.responsive?
+    end
   end
 
   describe "#url" do
-
     it "returns a url for the server that includes the port" do
       subject.port = 31337
       expect(subject.url).to eq("http://127.0.0.1:31337")
     end
 
+    it "returns a url for the server that includes the host" do
+      subject.host = "0.0.0.0"
+      subject.port = 31337
+      expect(subject.url).to eq("http://0.0.0.0:31337")
+    end
   end
 
   describe "integration" do
-
     before do
-      allow(Teaspoon.configuration).to receive(:suite_configs).and_return("foo" => {block: proc{}})
+      suite_config = proc { |c| c.javascripts = ["foo"] }
+      allow(Teaspoon.configuration).to receive(:suite_configs).and_return("foo" => { block: suite_config })
       allow(Teaspoon.configuration).to receive(:suppress_log).and_return(true)
     end
 
@@ -96,7 +112,5 @@ describe Teaspoon::Server do
       response = Net::HTTP.get_response(URI.parse("#{subject.url}/teaspoon/foo"))
       expect(response.code).to eq("200")
     end
-
   end
-
 end

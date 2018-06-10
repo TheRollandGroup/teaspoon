@@ -4,14 +4,16 @@ require "webrick"
 
 module Teaspoon
   class Server
-
-    attr_accessor :port
+    attr_accessor :port, :host
 
     def initialize
+      @host = Teaspoon.configuration.server_host || "127.0.0.1"
       @port = Teaspoon.configuration.server_port || find_available_port
     end
 
     def start
+      return if responsive?
+
       thread = Thread.new do
         disable_logging
         server = Rack::Server.new(rack_options)
@@ -19,18 +21,18 @@ module Teaspoon
       end
       wait_until_started(thread)
     rescue => e
-      raise Teaspoon::ServerException, "Cannot start server: #{e.message}"
+      raise Teaspoon::ServerError.new(desc: e.message)
     end
 
     def responsive?
-      TCPSocket.new("127.0.0.1", port).close
+      TCPSocket.new(host, port).close
       true
     rescue Errno::ECONNREFUSED, Errno::EHOSTUNREACH
       false
     end
 
     def url
-      "http://127.0.0.1:#{port}"
+      "http://#{host}:#{port}"
     end
 
     protected
@@ -38,7 +40,7 @@ module Teaspoon
     def wait_until_started(thread)
       Timeout.timeout(Teaspoon.configuration.server_timeout.to_i) { thread.join(0.1) until responsive? }
     rescue Timeout::Error
-      raise Teaspoon::ServerException, "Server failed to start. You may need to increase the timeout configuration."
+      raise Timeout::Error.new("consider increasing the timeout with `config.server_timeout`")
     end
 
     def disable_logging
@@ -53,6 +55,7 @@ module Teaspoon
     def rack_options
       {
         app: Rails.application,
+        Host: host,
         Port: port,
         environment: "test",
         AccessLog: [],
@@ -62,7 +65,7 @@ module Teaspoon
     end
 
     def find_available_port
-      server = TCPServer.new("127.0.0.1", 0)
+      server = TCPServer.new(host, 0)
       server.addr[1]
     ensure
       server.close if server

@@ -1,8 +1,6 @@
 source "https://rubygems.org"
 
-gem "rails", "5.0.0.1"
-gem "sprockets", ">= 4.0.0.beta2"
-
+gem "rails", "5.0.0.beta3"
 gemspec name: "teaspoon"
 
 group :development, :test do
@@ -18,6 +16,6 @@ group :development, :test do
   gem "capybara-webkit"
 
   # io services
-  gem "simplecov", require: false
+  gem "codeclimate-test-reporter", group: :test, require: false
   gem "rubocop", require: false
 end

@@ -19,4 +19,4 @@ Teaspoon.hook = (name, payload = {}) ->
 
   xhrRequest "#{Teaspoon.suites.active}/#{name}", payload, ->
     return unless xhr.readyState == 4
-    throw JSON.parse(xhr.response).err
+    throw("Unable to call hook \"#{url}\".") unless xhr.status == 200

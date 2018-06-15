@@ -101,7 +101,7 @@ end
 
 begin
   require 'action_view'
-  if ActionView.gem_version >= Gem::Version.new('4.2.5')
+  if ActionView::VERSION::STRING >= '4.2.5'
     require 'action_view/helpers/asset_tag_helper'
     module ActionView::Helpers::AssetTagHelper
       def javascript_include_tag(*sources)
@@ -118,15 +118,4 @@ begin
     end
   end
 rescue
-end
-
-# Some Sprockets patches to work with Sprockets 2.x
-unless Sprockets::Asset.public_method_defined?(:filename)
-  module Sprockets
-    class Asset
-      def filename
-        pathname.to_s
-      end
-    end
-  end
 end

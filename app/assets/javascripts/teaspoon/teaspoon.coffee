@@ -32,16 +32,6 @@ class @Teaspoon
     new (Teaspoon.resolveClass("Runner"))()
 
 
-  @setupErrorHandler: ->
-    originalOnError = window.onerror
-    window.onerror = (message) ->
-      originalOnError(arguments...) if originalOnError && originalOnError.call
-      return if Teaspoon.started
-      Teaspoon.messages.push JSON.stringify
-        _teaspoon: true
-        type: "exception"
-        message:  message
-
   @reload: ->
     window.location.reload()
 
@@ -95,12 +85,10 @@ class @Teaspoon
 
 
   @checkNamespace: (root, klass) ->
-    namespaces = klass.split(".")
+    namespaces = klass.split('.')
     scope = root
 
     for namespace, i in namespaces
       return false if !(scope = scope[namespace])
 
     return scope
-
-Teaspoon.setupErrorHandler()
